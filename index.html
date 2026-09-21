@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Kuwadzana High School Banket | School Ledger</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        body {
+            background: #f3f6fa;
+            color: #222;
+        }
+
+        /* HEADER */
+        header {
+            background: #102a43;
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+
+        .school-title h1 {
+            font-size: 25px;
+        }
+
+        .school-title p {
+            margin-top: 5px;
+            color: #c9d6e5;
+        }
+
+        .school-badge {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: white;
+            color: #102a43;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        /* NAVIGATION */
+        nav {
+            background: #ffffff;
+            padding: 12px 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        nav button {
+            border: none;
+            background: transparent;
+            padding: 12px 18px;
+            margin-right: 5px;
+            cursor: pointer;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        nav button:hover,
+        nav button.active {
+            background: #102a43;
+            color: white;
+        }
+
+        /* MAIN */
+        main {
+            padding: 30px;
+            max-width: 1400px;
+            margin: auto;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-title {
+            margin-bottom: 25px;
+        }
+
+        .page-title h2 {
+            color: #102a43;
+            margin-bottom: 5px;
+        }
+
+        .page-title p {
+            color: #66788a;
+        }
+
+        /* DASHBOARD CARDS */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        }
+
+        .card h3 {
+            color: #66788a;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .card .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #102a43;
+        }
+
+        /* CONTENT BOX */
+        .box {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+
+        .box h3 {
+            color: #102a43;
+            margin-bottom: 20px;
+        }
+
+        /* FORMS */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: #455a6f;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            border: 1px solid #ccd6e0;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #102a43;
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
+
+        /* BUTTONS */
+        .btn {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: #102a43;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4b70;
+        }
+
+        .btn-success {
+            background: #218739;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #c0392b;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #e09f00;
+            color: white;
+        }
+
+        /* SEARCH */
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ccd6e0;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        /* TABLE */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        th {
+            background: #102a43;
+            color: white;
+            padding: 13px;
+            text-align: left;
+        }
+
+        td {
+            padding: 13px;
+            border-bottom: 1px solid #e3e8ed;
+        }
+
+        tr:hover {
+            background: #f5f8fb;
+        }
+
+        .status {
+            padding: 6px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .paid {
+            background: #d8f3dc;
+            color: #176b2c;
+        }
+
+        .partial {
+            background: #fff0c2;
+            color: #875d00;
+        }
+
+        .owing {
+            background: #ffdada;
+            color: #9b1c1c;
+        }
+
+        .action-btn {
+            border: none;
+            padding: 7px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 2px;
+        }
+
+        .delete {
+            background: #c0392b;
+            color: white;
+        }
+
+        .payment {
+            background: #218739;
+            color: white;
+        }
+
+        /* REPORTS */
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .report {
+            padding: 25px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        }
+
+        .report h4 {
+            color: #66788a;
+            margin-bottom: 10px;
+        }
+
+        .report strong {
+            font-size: 25px;
+            color: #102a43;
+        }
+
+        /* FOOTER */
+        footer {
+            background: #102a43;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+        }
+
+        footer p {
+            margin: 5px;
+            color: #c9d6e5;
+        }
+
+        /* RESPONSIVE */
+        @media(max-width: 900px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .report-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width: 600px) {
+            header {
+                padding: 15px;
+            }
+
+            header .school-title h1 {
+                font-size: 18px;
+            }
+
+            main {
+                padding: 15px;
+            }
+
+            nav {
+                padding: 10px;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full {
+                grid-column: auto;
+            }
+        }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.55);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            width: 90%;
+            max-width: 450px;
+            border-radius: 10px;
+        }
+
+        .modal-content h3 {
+            color: #102a43;
+            margin-bottom: 20px;
+        }
+
+        .close {
+            float: right;
+            font-size: 25px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+
+    <div class="school-title">
+        <h1>KUWADZANA HIGH SCHOOL BANKET</h1>
+        <p>School Ledger Management System</p>
+    </div>
+
+    <div class="school-badge">
+        KHS
+    </div>
+
+</header>
+
+<nav>
+
+    <button class="nav-btn active" onclick="showPage('dashboard', this)">
+        Dashboard
+    </button>
+
+    <button class="nav-btn" onclick="showPage('students', this)">
+        Students
+    </button>
+
+    <button class="nav-btn" onclick="showPage('ledger', this)">
+        Ledger
+    </button>
+
+    <button class="nav-btn" onclick="showPage('reports', this)">
+        Reports
+    </button>
+
+</nav>
+
+<main>
+
+    <!-- DASHBOARD -->
+
+    <section id="dashboard" class="page active">
+
+        <div class="page-title">
+            <h2>Dashboard</h2>
+            <p>Overview of the school financial ledger.</p>
+        </div>
+
+        <div class="cards">
+
+            <div class="card">
+                <h3>TOTAL STUDENTS</h3>
+                <div class="number" id="totalStudents">0</div>
+            </div>
+
+            <div class="card">
+                <h3>TOTAL FEES</h3>
+                <div class="number" id="totalFees">$0.00</div>
+            </div>
+
+            <div class="card">
+                <h3>TOTAL PAID</h3>
+                <div class="number" id="totalPaid">$0.00</div>
+            </div>
+
+            <div class="card">
+                <h3>TOTAL OUTSTANDING</h3>
+                <div class="number" id="totalOutstanding">$0.00</div>
+            </div>
+
+        </div>
+
+        <div class="box">
+
+            <h3>System Information</h3>
+
+            <p>
+                Welcome to the Kuwadzana High School Banket
+                School Ledger Management System.
+            </p>
+
+            <br>
+
+            <p>
+                The system is designed to help manage student
+                fee information, payments, balances and reports.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- STUDENTS -->
+
+    <section id="students" class="page">
+
+        <div class="page-title">
+            <h2>Student Management</h2>
+            <p>Add and manage student financial records.</p>
+        </div>
+
+        <div class="box">
+
+            <h3>Add New Student</h3>
+
+            <form id="studentForm">
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+
+                        <label>Student Number</label>
+
+                        <input
+                            type="text"
+                            id="studentNumber"
+                            placeholder="e.g. KHS001"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label>Student Name</label>
+
+                        <input
+                            type="text"
+                            id="studentName"
+                            placeholder="Enter student name"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label>Class</label>
+
+                        <input
+                            type="text"
+                            id="studentClass"
+                            placeholder="e.g. Upper 6A"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label>Total Fees ($)</label>
+
+                        <input
+                            type="number"
+                            id="totalFeesInput"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label>Amount Paid ($)</label>
+
+                        <input
+                            type="number"
+                            id="amountPaidInput"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            value="0"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group full">
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                        >
+                            + Add Student
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+        <div class="box">
+
+            <h3>Student List</h3>
+
+            <div class="search-box">
+
+                <input
+                    type="text"
+                    id="studentSearch"
+                    placeholder="Search by student number, name or class..."
+                    onkeyup="displayStudents()"
+                >
+
+            </div>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Student No.</th>
+                            <th>Name</th>
+                            <th>Class</th>
+                            <th>Total Fees</th>
+                            <th>Paid</th>
+                            <th>Balance</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="studentTableBody"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- LEDGER -->
+
+    <section id="ledger" class="page">
+
+        <div class="page-title">
+
+            <h2>School Ledger</h2>
+
+            <p>
+                View student fees, payments and outstanding balances.
+            </p>
+
+        </div>
+
+        <div class="box">
+
+            <div class="search-box">
+
+                <input
+                    type="text"
+                    id="ledgerSearch"
+                    placeholder="Search ledger..."
+                    onkeyup="displayLedger()"
+                >
+
+            </div>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Student No.</th>
+                            <th>Name</th>
+                            <th>Class</th>
+                            <th>Total Fees</th>
+                            <th>Paid</th>
+                            <th>Balance</th>
+                            <th>Status</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="ledgerTableBody"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- REPORTS -->
+
+    <section id="reports" class="page">
+
+        <div class="page-title">
+
+            <h2>Financial Reports</h2>
+
+            <p>
+                Summary of the school ledger.
+            </p>
+
+        </div>
+
+        <div class="report-grid">
+
+            <div class="report">
+
+                <h4>Total Students</h4>
+
+                <strong id="reportStudents">0</strong>
+
+            </div>
+
+            <div class="report">
+
+                <h4>Total Expected Fees</h4>
+
+                <strong id="reportFees">$0.00</strong>
+
+            </div>
+
+            <div class="report">
+
+                <h4>Total Payments</h4>
+
+                <strong id="reportPaid">$0.00</strong>
+
+            </div>
+
+            <div class="report">
+
+                <h4>Total Outstanding</h4>
+
+                <strong id="reportOutstanding">$0.00</strong>
+
+            </div>
+
+            <div class="report">
+
+                <h4>Students Fully Paid</h4>
+
+                <strong id="reportFullyPaid">0</strong>
+
+            </div>
+
+            <div class="report">
+
+                <h4>Students With Balances</h4>
+
+                <strong id="reportOwing">0</strong>
+
+            </div>
+
+        </div>
+
+        <br>
+
+        <div class="box">
+
+            <h3>Generate Report</h3>
+
+            <p>
+                Use the information above to review the current
+                financial position of the school ledger.
+            </p>
+
+            <button
+                class="btn btn-primary"
+                onclick="printReport()"
+            >
+                Print Report
+            </button>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<footer>
+
+    <p><strong>Kuwadzana High School Banket</strong></p>
+
+    <p>School Ledger Management System</p>
+
+    <p>© 2026 Kuwadzana High School Banket</p>
+
+</footer>
+
+
+<!-- PAYMENT MODAL -->
+
+<div class="modal" id="paymentModal">
+
+    <div class="modal-content">
+
+        <span
+            class="close"
+            onclick="closePaymentModal()"
+        >
+            &times;
+        </span>
+
+        <h3>Record Payment</h3>
+
+        <p id="paymentStudentName"></p>
+
+        <br>
+
+        <div class="form-group">
+
+            <label>Payment Amount ($)</label>
+
+            <input
+                type="number"
+                id="paymentAmount"
+                min="0"
+                step="0.01"
+                placeholder="Enter payment"
+            >
+
+        </div>
+
+        <button
+            class="btn btn-success"
+            onclick="recordPayment()"
+        >
+            Record Payment
+        </button>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    /* =====================================
+       STUDENT DATA
+       ===================================== */
+
+    let students = JSON.parse(
+        localStorage.getItem("kuwadzanaStudents")
+    ) || [];
+
+    let paymentStudentIndex = null;
+
+
+    /* =====================================
+       NAVIGATION
+       ===================================== */
+
+    function showPage(pageId, button) {
+
+        const pages = document.querySelectorAll(".page");
+
+        pages.forEach(function(page) {
+            page.classList.remove("active");
+        });
+
+        document.getElementById(pageId).classList.add("active");
+
+        const buttons = document.querySelectorAll(".nav-btn");
+
+        buttons.forEach(function(btn) {
+            btn.classList.remove("active");
+        });
+
+        button.classList.add("active");
+
+        updateDashboard();
+
+    }
+
+
+    /* =====================================
+       ADD STUDENT
+       ===================================== */
+
+    document.getElementById("studentForm").addEventListener(
+        "submit",
+        function(event) {
+
+            event.preventDefault();
+
+            const studentNumber =
+                document.getElementById("studentNumber").value.trim();
+
+            const studentName =
+                document.getElementById("studentName").value.trim();
+
+            const studentClass =
+                document.getElementById("studentClass").value.trim();
+
+            const totalFees =
+                parseFloat(
+                    document.getElementById("totalFeesInput").value
+                );
+
+            const amountPaid =
+                parseFloat(
+                    document.getElementById("amountPaidInput").value
+                );
+
+            if (amountPaid > totalFees) {
+
+                alert("Amount paid cannot be greater than total fees.");
+
+                return;
+            }
+
+
+            /* CHECK DUPLICATE STUDENT NUMBER */
+
+            const duplicate = students.some(function(student) {
+
+                return student.number.toLowerCase()
+                    === studentNumber.toLowerCase();
+
+            });
+
+            if (duplicate) {
+
+                alert("A student with this number already exists.");
+
+                return;
+            }
+
+
+            const newStudent = {
+
+                number: studentNumber,
+
+                name: studentName,
+
+                className: studentClass,
+
+                fees: totalFees,
+
+                paid: amountPaid
+
+            };
+
+
+            students.push(newStudent);
+
+            saveStudents();
+
+            displayStudents();
+
+            displayLedger();
+
+            updateDashboard();
+
+
+            document.getElementById("studentForm").reset();
+
+            document.getElementById("amountPaidInput").value = 0;
+
+            alert("Student added successfully!");
+
+        }
+    );
+
+
+    /* =====================================
+       SAVE DATA
+       ===================================== */
+
+    function saveStudents() {
+
+        localStorage.setItem(
+            "kuwadzanaStudents",
+            JSON.stringify(students)
+        );
+
+    }
+
+
+    /* =====================================
+       DISPLAY STUDENTS
+       ===================================== */
+
+    function displayStudents() {
+
+        const table =
+            document.getElementById("studentTableBody");
+
+        const search =
+            document.getElementById("studentSearch")
+                .value
+                .toLowerCase();
+
+        table.innerHTML = "";
+
+
+        students.forEach(function(student, index) {
+
+            const text =
+                student.number + " " +
+                student.name + " " +
+                student.className;
+
+            if (!text.toLowerCase().includes(search)) {
+                return;
+            }
+
+
+            const balance =
+                student.fees - student.paid;
+
+            let status = "";
+            let statusClass = "";
+
+
+            if (balance <= 0) {
+
+                status = "Fully Paid";
+                statusClass = "paid";
+
+            } else if (student.paid > 0) {
+
+                status = "Partial";
+                statusClass = "partial";
+
+            } else {
+
+                status = "Outstanding";
+                statusClass = "owing";
+
+            }
+
+
+            const row = document.createElement("tr");
+
+
+            row.innerHTML = `
+
+                <td>${student.number}</td>
+
+                <td>${student.name}</td>
+
+                <td>${student.className}</td>
+
+                <td>$${student.fees.toFixed(2)}</td>
+
+                <td>$${student.paid.toFixed(2)}</td>
+
+                <td>$${balance.toFixed(2)}</td>
+
+                <td>
+                    <span class="status ${statusClass}">
+                        ${status}
+                    </span>
+                </td>
+
+                <td>
+
+                    <button
+                        class="action-btn payment"
+                        onclick="openPaymentModal(${index})"
+                    >
+                        Payment
+                    </button>
+
+                    <button
+                        class="action-btn delete"
+                        onclick="deleteStudent(${index})"
+                    >
+                        Delete
+                    </button>
+
+                </td>
+
+            `;
+
+
+            table.appendChild(row);
+
+        });
+
+    }
+
+
+    /* =====================================
+       DISPLAY LEDGER
+       ===================================== */
+
+    function displayLedger() {
+
+        const table =
+            document.getElementById("ledgerTableBody");
+
+        const search =
+            document.getElementById("ledgerSearch")
+                .value
+                .toLowerCase();
+
+        table.innerHTML = "";
+
+
+        students.forEach(function(student) {
+
+            const text =
+                student.number + " " +
+                student.name + " " +
+                student.className;
+
+            if (!text.toLowerCase().includes(search)) {
+                return;
+            }
+
+
+            const balance =
+                student.fees - student.paid;
+
+            let status = "";
+            let statusClass = "";
+
+
+            if (balance <= 0) {
+
+                status = "Fully Paid";
+                statusClass = "paid";
+
+            } else if (student.paid > 0) {
+
+                status = "Partial";
+                statusClass = "partial";
+
+            } else {
+
+                status = "Outstanding";
+                statusClass = "owing";
+
+            }
+
+
+            const row = document.createElement("tr");
+
+
+            row.innerHTML = `
+
+                <td>${student.number}</td>
+
+                <td>${student.name}</td>
+
+                <td>${student.className}</td>
+
+                <td>$${student.fees.toFixed(2)}</td>
+
+                <td>$${student.paid.toFixed(2)}</td>
+
+                <td>$${balance.toFixed(2)}</td>
+
+                <td>
+                    <span class="status ${statusClass}">
+                        ${status}
+                    </span>
+                </td>
+
+            `;
+
+
+            table.appendChild(row);
+
+        });
+
+    }
+
+
+    /* =====================================
+       DELETE STUDENT
+       ===================================== */
+
+    function deleteStudent(index) {
+
+        const student = students[index];
+
+        const confirmation = confirm(
+            "Delete " + student.name + " from the ledger?"
+        );
+
+        if (!confirmation) {
+            return;
+        }
+
+
+        students.splice(index, 1);
+
+        saveStudents();
+
+        displayStudents();
+
+        displayLedger();
+
+        updateDashboard();
+
+    }
+
+
+    /* =====================================
+       PAYMENT MODAL
+       ===================================== */
+
+    function openPaymentModal(index) {
+
+        paymentStudentIndex = index;
+
+        const student = students[index];
+
+        document.getElementById(
+            "paymentStudentName"
+        ).innerHTML =
+            "<strong>Student:</strong> " +
+            student.name +
+            "<br><strong>Student No:</strong> " +
+            student.number +
+            "<br><strong>Current Balance:</strong> $" +
+            (student.fees - student.paid).toFixed(2);
+
+        document.getElementById("paymentAmount").value = "";
+
+        document.getElementById("paymentModal").style.display =
+            "flex";
+
+    }
+
+
+    function closePaymentModal() {
+
+        document.getElementById("paymentModal").style.display =
+            "none";
+
+    }
+
+
+    /* =====================================
+       RECORD PAYMENT
+       ===================================== */
+
+    function recordPayment() {
+
+        if (paymentStudentIndex === null) {
+            return;
+        }
+
+
+        const amount =
+            parseFloat(
+                document.getElementById("paymentAmount").value
+            );
+
+
+        if (isNaN(amount) || amount <= 0) {
+
+            alert("Please enter a valid payment amount.");
+
+            return;
+        }
+
+
+        const student =
+            students[paymentStudentIndex];
+
+
+        const balance =
+            student.fees - student.paid;
+
+
+        if (amount > balance) {
+
+            alert(
+                "Payment cannot be greater than the outstanding balance."
+            );
+
+            return;
+        }
+
+
+        student.paid += amount;
+
+
+        saveStudents();
+
+        displayStudents();
+
+        displayLedger();
+
+        updateDashboard();
+
+        closePaymentModal();
+
+
+        alert("Payment recorded successfully!");
+
+    }
+
+
+    /* =====================================
+       DASHBOARD
+       ===================================== */
+
+    function updateDashboard() {
+
+        let totalFees = 0;
+
+        let totalPaid = 0;
+
+        let fullyPaid = 0;
+
+        let owing = 0;
+
+
+        students.forEach(function(student) {
+
+            totalFees += student.fees;
+
+            totalPaid += student.paid;
+
+
+            if (student.paid >= student.fees) {
+
+                fullyPaid++;
+
+            } else {
+
+                owing++;
+
+            }
+
+        });
+
+
+        const outstanding =
+            totalFees - totalPaid;
+
+
+        document.getElementById(
+            "totalStudents"
+        ).innerText = students.length;
+
+
+        document.getElementById(
+            "totalFees"
+        ).innerText =
+            "$" + totalFees.toFixed(2);
+
+
+        document.getElementById(
+            "totalPaid"
+        ).innerText =
+            "$" + totalPaid.toFixed(2);
+
+
+        document.getElementById(
+            "totalOutstanding"
+        ).innerText =
+            "$" + outstanding.toFixed(2);
+
+
+        /* REPORTS */
+
+        document.getElementById(
+            "reportStudents"
+        ).innerText = students.length;
+
+
+        document.getElementById(
+            "reportFees"
+        ).innerText =
+            "$" + totalFees.toFixed(2);
+
+
+        document.getElementById(
+            "reportPaid"
+        ).innerText =
+            "$" + totalPaid.toFixed(2);
+
+
+        document.getElementById(
+            "reportOutstanding"
+        ).innerText =
+            "$" + outstanding.toFixed(2);
+
+
+        document.getElementById(
+            "reportFullyPaid"
+        ).innerText = fullyPaid;
+
+
+        document.getElementById(
+            "reportOwing"
+        ).innerText = owing;
+
+    }
+
+
+    /* =====================================
+       PRINT REPORT
+       ===================================== */
+
+    function printReport() {
+
+        window.print();
+
+    }
+
+
+    /* =====================================
+       CLOSE MODAL WHEN CLICKING OUTSIDE
+       ===================================== */
+
+    window.onclick = function(event) {
+
+        const modal =
+            document.getElementById("paymentModal");
+
+        if (event.target === modal) {
+
+            closePaymentModal();
+
+        }
+
+    };
+
+
+    /* =====================================
+       START SYSTEM
+       ===================================== */
+
+    displayStudents();
+
+    displayLedger();
+
+    updateDashboard();
+
+</script>
+
+</body>
+</html>
