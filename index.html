@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -1569,15 +1570,164 @@ footer strong {
 <script>
 
 /* =========================================================
+   SUPABASE CONNECTION
+   ========================================================= */
+
+const SUPABASE_URL = "https://sbrmnknwyjdwjeqvon.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_iq-KUNEZKyrb3JQ5aimQ_xLDLFAM";
+
+const supabaseClient = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+);
+
+/* =========================================================
    DATA
    ========================================================= */
 
-let students = JSON.parse(
-    localStorage.getItem("kuwadzanaStudentsV2")
-) || [];
-
+let students = [];
 let selectedStudent = null;
+let currentUser = null;
 
+/* =========================================================
+   STAFF LOGIN / STATUS
+   ========================================================= */
+
+function addLoginControls() {
+
+    const badge = document.querySelector(".school-badge");
+
+    if (!badge || document.getElementById("staffLoginButton")) {
+        return;
+    }
+
+    const loginButton = document.createElement("button");
+    loginButton.id = "staffLoginButton";
+    loginButton.className = "btn btn-green";
+    loginButton.style.padding = "8px 12px";
+    loginButton.style.marginLeft = "10px";
+    loginButton.textContent = "Staff Login";
+    loginButton.onclick = staffLogin;
+
+    badge.appendChild(loginButton);
+}
+
+async function updateAuthStatus() {
+
+    const result = await supabaseClient.auth.getSession();
+    currentUser = result.data.session ? result.data.session.user : null;
+
+    const button = document.getElementById("staffLoginButton");
+
+    if (!button) {
+        return;
+    }
+
+    if (currentUser) {
+        button.textContent = "Logout Staff";
+        button.className = "btn btn-yellow";
+        button.onclick = staffLogout;
+        button.title = currentUser.email || "Staff account";
+    } else {
+        button.textContent = "Staff Login";
+        button.className = "btn btn-green";
+        button.onclick = staffLogin;
+    }
+}
+
+async function staffLogin() {
+
+    const email = prompt("Enter the staff email address:");
+
+    if (!email) {
+        return;
+    }
+
+    const password = prompt("Enter the staff password:");
+
+    if (!password) {
+        return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email.trim(),
+        password: password
+    });
+
+    if (error) {
+        alert("Login failed: " + error.message);
+        return;
+    }
+
+    currentUser = data.user;
+    await updateAuthStatus();
+    alert("Staff login successful.");
+}
+
+async function staffLogout() {
+
+    await supabaseClient.auth.signOut();
+    currentUser = null;
+    await updateAuthStatus();
+    alert("Staff logged out.");
+}
+
+async function ensureStaff() {
+
+    const sessionResult = await supabaseClient.auth.getSession();
+    currentUser = sessionResult.data.session
+        ? sessionResult.data.session.user
+        : null;
+
+    if (currentUser) {
+        return true;
+    }
+
+    await staffLogin();
+
+    const check = await supabaseClient.auth.getSession();
+    currentUser = check.data.session
+        ? check.data.session.user
+        : null;
+
+    return !!currentUser;
+}
+
+/* =========================================================
+   LOAD STUDENTS FROM SUPABASE
+   ========================================================= */
+
+async function loadStudents() {
+
+    const { data, error } = await supabaseClient
+        .from("students")
+        .select("id, student_number, name, class, total_fees, amount_paid")
+        .order("id", { ascending: true });
+
+    if (error) {
+        console.error(error);
+        alert("Could not load student records from the online database.\n\n" + error.message);
+        students = [];
+        updateEverything();
+        return;
+    }
+
+    students = (data || []).map(function(row) {
+
+        return {
+            id: row.id,
+            number: row.student_number || "",
+            name: row.name || "",
+            className: row.class || "",
+            fees: Number(row.total_fees) || 0,
+            paid: Number(row.amount_paid) || 0,
+            date: ""
+        };
+
+    });
+
+    updateEverything();
+}
 
 /* =========================================================
    DEFAULT DATE
@@ -1586,7 +1736,6 @@ let selectedStudent = null;
 document.getElementById("registrationDate").value =
     new Date().toISOString().split("T")[0];
 
-
 /* =========================================================
    NAVIGATION
    ========================================================= */
@@ -1594,198 +1743,119 @@ document.getElementById("registrationDate").value =
 function showPage(pageId, button) {
 
     document.querySelectorAll(".page").forEach(function(page) {
-
         page.classList.remove("active");
-
     });
-
 
     document.getElementById(pageId).classList.add("active");
 
-
     document.querySelectorAll(".menu button").forEach(function(btn) {
-
         btn.classList.remove("active");
-
     });
 
-
     if (button) {
-
         button.classList.add("active");
-
     }
 
-
     updateEverything();
-
 }
-
 
 /* =========================================================
    SIDEBAR
    ========================================================= */
 
 function toggleSidebar() {
-
-    document.getElementById("sidebar")
-        .classList.toggle("open");
-
+    document.getElementById("sidebar").classList.toggle("open");
 }
-
 
 /* =========================================================
    QUICK ACTIONS
    ========================================================= */
 
 function goToStudents() {
-
-    const button =
-        document.querySelectorAll(".menu button")[1];
-
+    const button = document.querySelectorAll(".menu button")[1];
     showPage("students", button);
-
 }
-
 
 function goToPayments() {
-
-    const button =
-        document.querySelectorAll(".menu button")[3];
-
+    const button = document.querySelectorAll(".menu button")[3];
     showPage("payments", button);
-
 }
-
 
 function goToReports() {
-
-    const button =
-        document.querySelectorAll(".menu button")[4];
-
+    const button = document.querySelectorAll(".menu button")[4];
     showPage("reports", button);
-
 }
-
-
-/* =========================================================
-   SAVE DATA
-   ========================================================= */
-
-function saveData() {
-
-    localStorage.setItem(
-        "kuwadzanaStudentsV2",
-        JSON.stringify(students)
-    );
-
-}
-
 
 /* =========================================================
    ADD STUDENT
    ========================================================= */
 
-document.getElementById("studentForm")
-.addEventListener("submit", function(event) {
+document.getElementById("studentForm").addEventListener("submit", async function(event) {
 
     event.preventDefault();
 
+    if (!(await ensureStaff())) {
+        return;
+    }
 
-    const number =
-        document.getElementById("studentNumber")
-        .value.trim();
-
-    const name =
-        document.getElementById("studentName")
-        .value.trim();
-
-    const className =
-        document.getElementById("studentClass")
-        .value.trim();
-
-    const fees =
-        parseFloat(
-            document.getElementById("studentFees").value
-        );
-
-    const paid =
-        parseFloat(
-            document.getElementById("studentPaid").value
-        );
-
-    const date =
-        document.getElementById("registrationDate").value;
-
+    const number = document.getElementById("studentNumber").value.trim();
+    const name = document.getElementById("studentName").value.trim();
+    const className = document.getElementById("studentClass").value.trim();
+    const fees = parseFloat(document.getElementById("studentFees").value);
+    const paid = parseFloat(document.getElementById("studentPaid").value);
+    const date = document.getElementById("registrationDate").value;
 
     if (paid > fees) {
-
-        alert(
-            "Initial payment cannot be greater than total fees."
-        );
-
+        alert("Initial payment cannot be greater than total fees.");
         return;
-
     }
-
 
     const exists = students.some(function(student) {
-
-        return student.number.toLowerCase()
-            === number.toLowerCase();
-
+        return student.number.toLowerCase() === number.toLowerCase();
     });
 
-
     if (exists) {
-
-        alert(
-            "A student with this number already exists."
-        );
-
+        alert("A student with this number already exists.");
         return;
-
     }
 
+    const { data, error } = await supabaseClient
+        .from("students")
+        .insert([{
+            student_number: number,
+            name: name,
+            class: className,
+            total_fees: fees,
+            amount_paid: paid
+        }])
+        .select()
+        .single();
 
-    const student = {
+    if (error) {
+        console.error(error);
+        alert("Could not register the student.\n\n" + error.message);
+        return;
+    }
 
-        number: number,
-
-        name: name,
-
-        className: className,
-
-        fees: fees,
-
-        paid: paid,
-
+    students.push({
+        id: data.id,
+        number: data.student_number,
+        name: data.name,
+        className: data.class,
+        fees: Number(data.total_fees) || 0,
+        paid: Number(data.amount_paid) || 0,
         date: date
-
-    };
-
-
-    students.push(student);
-
-    saveData();
+    });
 
     this.reset();
-
     document.getElementById("studentPaid").value = 0;
-
     document.getElementById("registrationDate").value =
         new Date().toISOString().split("T")[0];
 
-
     updateEverything();
 
-
-    alert(
-        "Student registered successfully!"
-    );
-
+    alert("Student registered successfully online!");
 });
-
 
 /* =========================================================
    GET STATUS
@@ -1793,37 +1863,27 @@ document.getElementById("studentForm")
 
 function getStatus(student) {
 
-    const balance =
-        student.fees - student.paid;
-
+    const balance = student.fees - student.paid;
 
     if (balance <= 0) {
-
         return {
             text: "Fully Paid",
             className: "status-paid"
         };
-
     }
 
-
     if (student.paid > 0) {
-
         return {
             text: "Partial",
             className: "status-partial"
         };
-
     }
-
 
     return {
         text: "Outstanding",
         className: "status-owing"
     };
-
 }
-
 
 /* =========================================================
    DISPLAY STUDENTS
@@ -1831,113 +1891,49 @@ function getStatus(student) {
 
 function displayStudents() {
 
-    const table =
-        document.getElementById("studentTable");
-
-    const search =
-        document.getElementById("studentSearch")
-        .value.toLowerCase();
-
-    const classFilter =
-        document.getElementById("classFilter")
-        .value;
-
+    const table = document.getElementById("studentTable");
+    const search = document.getElementById("studentSearch").value.toLowerCase();
+    const classFilter = document.getElementById("classFilter").value;
 
     table.innerHTML = "";
 
-
     students.forEach(function(student, index) {
 
-        const searchable =
-            (
-                student.number +
-                " " +
-                student.name +
-                " " +
-                student.className
-            ).toLowerCase();
+        const searchable = (
+            student.number + " " + student.name + " " + student.className
+        ).toLowerCase();
 
-
-        if (
-            !searchable.includes(search)
-        ) {
-
+        if (!searchable.includes(search)) {
             return;
-
         }
 
-
-        if (
-            classFilter &&
-            student.className !== classFilter
-        ) {
-
+        if (classFilter && student.className !== classFilter) {
             return;
-
         }
 
-
-        const balance =
-            Math.max(0, student.fees - student.paid);
-
-        const status =
-            getStatus(student);
-
-
-        const row =
-            document.createElement("tr");
-
+        const balance = Math.max(0, student.fees - student.paid);
+        const status = getStatus(student);
+        const row = document.createElement("tr");
 
         row.innerHTML = `
-
             <td>${escapeHTML(student.number)}</td>
-
             <td>${escapeHTML(student.name)}</td>
-
             <td>${escapeHTML(student.className)}</td>
-
             <td>$${student.fees.toFixed(2)}</td>
-
             <td>$${student.paid.toFixed(2)}</td>
-
             <td>$${balance.toFixed(2)}</td>
-
+            <td><span class="status ${status.className}">${status.text}</span></td>
             <td>
-                <span class="status ${status.className}">
-                    ${status.text}
-                </span>
+                <button class="action action-pay" onclick="openPayment(${index})">Pay</button>
+                <button class="action action-delete" onclick="deleteStudent(${index})">Delete</button>
             </td>
-
-            <td>
-
-                <button
-                    class="action action-pay"
-                    onclick="openPayment(${index})"
-                >
-                    Pay
-                </button>
-
-                <button
-                    class="action action-delete"
-                    onclick="deleteStudent(${index})"
-                >
-                    Delete
-                </button>
-
-            </td>
-
         `;
 
-
         table.appendChild(row);
-
     });
 
-
     updateClassFilter();
-
 }
-
 
 /* =========================================================
    CLASS FILTER
@@ -1945,54 +1941,28 @@ function displayStudents() {
 
 function updateClassFilter() {
 
-    const select =
-        document.getElementById("classFilter");
-
-    const current =
-        select.value;
-
-
+    const select = document.getElementById("classFilter");
+    const current = select.value;
     const classes = [];
 
-
     students.forEach(function(student) {
-
-        if (
-            !classes.includes(student.className)
-        ) {
-
+        if (!classes.includes(student.className)) {
             classes.push(student.className);
-
         }
-
     });
-
 
     classes.sort();
-
-
-    select.innerHTML =
-        '<option value="">All Classes</option>';
-
+    select.innerHTML = '<option value="">All Classes</option>';
 
     classes.forEach(function(className) {
-
-        const option =
-            document.createElement("option");
-
+        const option = document.createElement("option");
         option.value = className;
-
         option.textContent = className;
-
         select.appendChild(option);
-
     });
 
-
     select.value = current;
-
 }
-
 
 /* =========================================================
    LEDGER
@@ -2000,78 +1970,38 @@ function updateClassFilter() {
 
 function displayLedger() {
 
-    const table =
-        document.getElementById("ledgerTable");
-
-    const search =
-        document.getElementById("ledgerSearch")
-        .value.toLowerCase();
-
+    const table = document.getElementById("ledgerTable");
+    const search = document.getElementById("ledgerSearch").value.toLowerCase();
 
     table.innerHTML = "";
 
-
     students.forEach(function(student) {
 
-        const searchable =
-            (
-                student.number +
-                " " +
-                student.name +
-                " " +
-                student.className
-            ).toLowerCase();
-
+        const searchable = (
+            student.number + " " + student.name + " " + student.className
+        ).toLowerCase();
 
         if (!searchable.includes(search)) {
-
             return;
-
         }
 
-
-        const balance =
-            Math.max(0, student.fees - student.paid);
-
-        const status =
-            getStatus(student);
-
-
-        const row =
-            document.createElement("tr");
-
+        const balance = Math.max(0, student.fees - student.paid);
+        const status = getStatus(student);
+        const row = document.createElement("tr");
 
         row.innerHTML = `
-
             <td>${escapeHTML(student.number)}</td>
-
             <td>${escapeHTML(student.name)}</td>
-
             <td>${escapeHTML(student.className)}</td>
-
             <td>$${student.fees.toFixed(2)}</td>
-
             <td>$${student.paid.toFixed(2)}</td>
-
             <td>$${balance.toFixed(2)}</td>
-
-            <td>
-
-                <span class="status ${status.className}">
-                    ${status.text}
-                </span>
-
-            </td>
-
+            <td><span class="status ${status.className}">${status.text}</span></td>
         `;
 
-
         table.appendChild(row);
-
     });
-
 }
-
 
 /* =========================================================
    PAYMENT TABLE
@@ -2079,56 +2009,29 @@ function displayLedger() {
 
 function displayPayments() {
 
-    const table =
-        document.getElementById("paymentTable");
-
+    const table = document.getElementById("paymentTable");
     table.innerHTML = "";
-
 
     students.forEach(function(student, index) {
 
-        const balance =
-            Math.max(0, student.fees - student.paid);
-
-
-        const row =
-            document.createElement("tr");
-
+        const balance = Math.max(0, student.fees - student.paid);
+        const row = document.createElement("tr");
 
         row.innerHTML = `
-
             <td>${escapeHTML(student.name)}</td>
-
             <td>${escapeHTML(student.number)}</td>
-
             <td>${escapeHTML(student.className)}</td>
-
             <td>$${student.fees.toFixed(2)}</td>
-
             <td>$${student.paid.toFixed(2)}</td>
-
             <td>$${balance.toFixed(2)}</td>
-
             <td>
-
-                <button
-                    class="action action-pay"
-                    onclick="openPayment(${index})"
-                >
-                    Record Payment
-                </button>
-
+                <button class="action action-pay" onclick="openPayment(${index})">Record Payment</button>
             </td>
-
         `;
 
-
         table.appendChild(row);
-
     });
-
 }
-
 
 /* =========================================================
    PAYMENT MODAL
@@ -2137,160 +2040,112 @@ function displayPayments() {
 function openPayment(index) {
 
     selectedStudent = index;
+    const student = students[index];
+    const balance = Math.max(0, student.fees - student.paid);
 
-    const student =
-        students[index];
-
-    const balance =
-        Math.max(0, student.fees - student.paid);
-
-
-    document.getElementById(
-        "paymentStudentInfo"
-    ).innerHTML = `
-
-        <strong>${escapeHTML(student.name)}</strong>
-
-        <br>
-
-        Student No:
-        ${escapeHTML(student.number)}
-
-        <br>
-
-        Current Balance:
-        <strong>$${balance.toFixed(2)}</strong>
-
+    document.getElementById("paymentStudentInfo").innerHTML = `
+        <strong>${escapeHTML(student.name)}</strong><br>
+        Student No: ${escapeHTML(student.number)}<br>
+        Current Balance: <strong>$${balance.toFixed(2)}</strong>
     `;
 
-
-    document.getElementById(
-        "paymentAmount"
-    ).value = "";
-
-
-    document.getElementById(
-        "paymentModal"
-    ).style.display = "flex";
-
+    document.getElementById("paymentAmount").value = "";
+    document.getElementById("paymentModal").style.display = "flex";
 }
-
 
 function closePaymentModal() {
-
-    document.getElementById(
-        "paymentModal"
-    ).style.display = "none";
-
+    document.getElementById("paymentModal").style.display = "none";
     selectedStudent = null;
-
 }
 
-
 /* =========================================================
-   SAVE PAYMENT
+   SAVE PAYMENT TO SUPABASE
    ========================================================= */
 
-function savePayment() {
+async function savePayment() {
 
     if (selectedStudent === null) {
-
         return;
-
     }
 
-
-    const amount =
-        parseFloat(
-            document.getElementById(
-                "paymentAmount"
-            ).value
-        );
-
-
-    if (
-        isNaN(amount) ||
-        amount <= 0
-    ) {
-
-        alert(
-            "Enter a valid payment amount."
-        );
-
+    if (!(await ensureStaff())) {
         return;
-
     }
 
+    const amount = parseFloat(document.getElementById("paymentAmount").value);
 
-    const student =
-        students[selectedStudent];
+    if (isNaN(amount) || amount <= 0) {
+        alert("Enter a valid payment amount.");
+        return;
+    }
 
-
-    const balance =
-        student.fees - student.paid;
-
+    const student = students[selectedStudent];
+    const balance = student.fees - student.paid;
 
     if (amount > balance) {
-
-        alert(
-            "Payment cannot be greater than the outstanding balance."
-        );
-
+        alert("Payment cannot be greater than the outstanding balance.");
         return;
-
     }
 
+    const newPaid = student.paid + amount;
 
-    student.paid += amount;
+    const { data, error } = await supabaseClient
+        .from("students")
+        .update({ amount_paid: newPaid })
+        .eq("id", student.id)
+        .select()
+        .single();
 
+    if (error) {
+        console.error(error);
+        alert("Could not save the payment online.\n\n" + error.message);
+        return;
+    }
 
-    saveData();
+    student.paid = Number(data.amount_paid) || newPaid;
 
     closePaymentModal();
-
     updateEverything();
 
-
-    alert(
-        "Payment recorded successfully!"
-    );
-
+    alert("Payment recorded successfully online!");
 }
-
 
 /* =========================================================
-   DELETE STUDENT
+   DELETE STUDENT FROM SUPABASE
    ========================================================= */
 
-function deleteStudent(index) {
+async function deleteStudent(index) {
 
-    const student =
-        students[index];
-
-
-    const confirmDelete =
-        confirm(
-            "Are you sure you want to delete " +
-            student.name +
-            "?"
-        );
-
-
-    if (!confirmDelete) {
-
+    if (!(await ensureStaff())) {
         return;
-
     }
 
+    const student = students[index];
+
+    const confirmDelete = confirm(
+        "Are you sure you want to delete " + student.name + "?"
+    );
+
+    if (!confirmDelete) {
+        return;
+    }
+
+    const { error } = await supabaseClient
+        .from("students")
+        .delete()
+        .eq("id", student.id);
+
+    if (error) {
+        console.error(error);
+        alert("Could not delete the student online.\n\n" + error.message);
+        return;
+    }
 
     students.splice(index, 1);
-
-    saveData();
-
     updateEverything();
 
+    alert("Student deleted successfully.");
 }
-
 
 /* =========================================================
    DASHBOARD
@@ -2299,99 +2154,36 @@ function deleteStudent(index) {
 function updateDashboard() {
 
     let totalFees = 0;
-
     let totalPaid = 0;
-
     let fullyPaid = 0;
-
     let owing = 0;
-
 
     students.forEach(function(student) {
 
         totalFees += student.fees;
-
         totalPaid += student.paid;
 
-
         if (student.paid >= student.fees) {
-
             fullyPaid++;
-
         } else {
-
             owing++;
-
         }
-
     });
 
+    const outstanding = Math.max(0, totalFees - totalPaid);
 
-    const outstanding =
-        Math.max(0, totalFees - totalPaid);
+    document.getElementById("dashStudents").textContent = students.length;
+    document.getElementById("dashFees").textContent = "$" + totalFees.toFixed(2);
+    document.getElementById("dashPaid").textContent = "$" + totalPaid.toFixed(2);
+    document.getElementById("dashOutstanding").textContent = "$" + outstanding.toFixed(2);
 
-
-    document.getElementById(
-        "dashStudents"
-    ).textContent =
-        students.length;
-
-
-    document.getElementById(
-        "dashFees"
-    ).textContent =
-        "$" + totalFees.toFixed(2);
-
-
-    document.getElementById(
-        "dashPaid"
-    ).textContent =
-        "$" + totalPaid.toFixed(2);
-
-
-    document.getElementById(
-        "dashOutstanding"
-    ).textContent =
-        "$" + outstanding.toFixed(2);
-
-
-    document.getElementById(
-        "reportStudents"
-    ).textContent =
-        students.length;
-
-
-    document.getElementById(
-        "reportFees"
-    ).textContent =
-        "$" + totalFees.toFixed(2);
-
-
-    document.getElementById(
-        "reportPaid"
-    ).textContent =
-        "$" + totalPaid.toFixed(2);
-
-
-    document.getElementById(
-        "reportOutstanding"
-    ).textContent =
-        "$" + outstanding.toFixed(2);
-
-
-    document.getElementById(
-        "reportFullyPaid"
-    ).textContent =
-        fullyPaid;
-
-
-    document.getElementById(
-        "reportOwing"
-    ).textContent =
-        owing;
-
+    document.getElementById("reportStudents").textContent = students.length;
+    document.getElementById("reportFees").textContent = "$" + totalFees.toFixed(2);
+    document.getElementById("reportPaid").textContent = "$" + totalPaid.toFixed(2);
+    document.getElementById("reportOutstanding").textContent = "$" + outstanding.toFixed(2);
+    document.getElementById("reportFullyPaid").textContent = fullyPaid;
+    document.getElementById("reportOwing").textContent = owing;
 }
-
 
 /* =========================================================
    RECENT STUDENTS
@@ -2399,69 +2191,38 @@ function updateDashboard() {
 
 function displayRecentStudents() {
 
-    const table =
-        document.getElementById("recentStudents");
-
+    const table = document.getElementById("recentStudents");
     table.innerHTML = "";
 
-
-    const recent =
-        students.slice(-5).reverse();
-
+    const recent = students.slice(-5).reverse();
 
     recent.forEach(function(student) {
 
-        const balance =
-            Math.max(0, student.fees - student.paid);
-
-
-        const row =
-            document.createElement("tr");
-
+        const balance = Math.max(0, student.fees - student.paid);
+        const row = document.createElement("tr");
 
         row.innerHTML = `
-
             <td>${escapeHTML(student.number)}</td>
-
             <td>${escapeHTML(student.name)}</td>
-
             <td>${escapeHTML(student.className)}</td>
-
             <td>$${student.fees.toFixed(2)}</td>
-
             <td>$${student.paid.toFixed(2)}</td>
-
             <td>$${balance.toFixed(2)}</td>
-
         `;
-
 
         table.appendChild(row);
-
     });
 
-
     if (recent.length === 0) {
-
         table.innerHTML = `
-
             <tr>
-
-                <td
-                    colspan="6"
-                    style="text-align:center;color:#64748b;"
-                >
+                <td colspan="6" style="text-align:center;color:#64748b;">
                     No students registered yet.
                 </td>
-
             </tr>
-
         `;
-
     }
-
 }
-
 
 /* =========================================================
    ESCAPE HTML
@@ -2469,45 +2230,30 @@ function displayRecentStudents() {
 
 function escapeHTML(text) {
 
-    const div =
-        document.createElement("div");
-
+    const div = document.createElement("div");
     div.textContent = text;
-
     return div.innerHTML;
-
 }
-
 
 /* =========================================================
    PRINT REPORT
    ========================================================= */
 
 function printReports() {
-
     window.print();
-
 }
-
 
 /* =========================================================
    UPDATE EVERYTHING
    ========================================================= */
 
 function updateEverything() {
-
     updateDashboard();
-
     displayStudents();
-
     displayLedger();
-
     displayPayments();
-
     displayRecentStudents();
-
 }
-
 
 /* =========================================================
    CLOSE MODAL
@@ -2515,28 +2261,29 @@ function updateEverything() {
 
 window.onclick = function(event) {
 
-    const modal =
-        document.getElementById(
-            "paymentModal"
-        );
-
+    const modal = document.getElementById("paymentModal");
 
     if (event.target === modal) {
-
         closePaymentModal();
-
     }
-
 };
-
 
 /* =========================================================
    START SYSTEM
    ========================================================= */
 
-updateEverything();
+window.addEventListener("DOMContentLoaded", async function() {
+    addLoginControls();
+    await updateAuthStatus();
+    await loadStudents();
+});
+
+supabaseClient.auth.onAuthStateChange(function() {
+    setTimeout(updateAuthStatus, 0);
+});
 
 </script>
+
 
 </body>
 </html>
