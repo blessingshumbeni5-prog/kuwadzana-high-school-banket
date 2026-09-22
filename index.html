@@ -1573,7 +1573,7 @@ footer strong {
    SUPABASE CONNECTION
    ========================================================= */
 
-const SUPABASE_URL = "https://sbrmnknnwyjdvwejqvonsupabase.co";
+const SUPABASE_URL = "https://sbrmnknwyjdwjeqvon.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_iq-KUNEZKyrb3JQ5aimQ_xLDLFAM";
 
 const supabaseClient = supabase.createClient(
@@ -1705,8 +1705,14 @@ async function loadStudents() {
         .order("id", { ascending: true });
 
     if (error) {
-        console.error(error);
-        alert("Could not load student records from the online database.\n\n" + error.message);
+        console.error("Supabase load error:", error);
+        let message = "Could not load student records from the online database.\n\n" + error.message;
+
+        if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
+            message += "\n\nThe website cannot reach the Supabase server. Check that the Supabase Project URL is correct and that the project is active.";
+        }
+
+        alert(message);
         students = [];
         updateEverything();
         return;
