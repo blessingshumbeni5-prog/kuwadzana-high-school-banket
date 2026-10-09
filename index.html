@@ -750,6 +750,11 @@ footer strong {
             Payments
         </button>
 
+        <button onclick="showPage('terms', this)">
+            <span class="menu-icon">🗓️</span>
+            Term Management
+        </button>
+
         <div class="menu-title">Management</div>
 
         <button onclick="showPage('reports', this)">
@@ -1193,6 +1198,42 @@ footer strong {
         <!-- ==================================================
              LEDGER
              ================================================== -->
+
+        <section id="terms" class="page">
+            <div class="page-heading">
+                <h2>Term Management</h2>
+                <p>Set school fees by year and term, and review term accounts. Existing legacy balances are not automatically assigned to a term.</p>
+            </div>
+            <div class="box">
+                <div class="box-title"><h3>School Term Fee Settings</h3></div>
+                <div class="form-grid">
+                    <div class="form-group"><label for="termSchoolYear">School Year</label><input type="number" id="termSchoolYear" min="2000" max="2100" required></div>
+                    <div class="form-group"><label for="termNumber">Term</label><select id="termNumber"><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div>
+                    <div class="form-group"><label for="termFeeAmount">Fee Amount ($)</label><input type="number" id="termFeeAmount" min="0" step="0.01" placeholder="e.g. 150.00" required></div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+                    <button class="btn btn-green" type="button" onclick="saveTermFeeSetting()">Save Term Fee</button>
+                    <button class="btn btn-yellow" type="button" onclick="copyPreviousTermFee()">Reuse Previous Term Fee</button>
+                    <button class="btn btn-green" type="button" onclick="loadTermManagement()">Refresh</button>
+                </div>
+                <p style="margin-top:12px;color:#666">Only the authorised administrator can change fee settings. Reusing a fee copies the amount; it does not change previous term records.</p>
+            </div>
+            <div class="box">
+                <div class="box-title"><h3>Saved Fee Settings</h3></div>
+                <div style="overflow-x:auto"><table><thead><tr><th>School Year</th><th>Term</th><th>Fee Amount</th><th>Last Updated</th></tr></thead><tbody id="termFeeRows"><tr><td colspan="4">Loading fee settings…</td></tr></tbody></table></div>
+            </div>
+            <div class="box">
+                <div class="box-title"><h3>Student Term Accounts</h3></div>
+                <p style="margin-bottom:12px;color:#666">Create an account for a student for the selected year and term. This does not move or rewrite historical balances.</p>
+                <div class="form-grid">
+                    <div class="form-group"><label for="termStudentSelect">Student</label><select id="termStudentSelect"><option value="">Load students first</option></select></div>
+                    <div class="form-group"><label for="termOpeningFees">Fees to charge ($)</label><input type="number" id="termOpeningFees" min="0" step="0.01" placeholder="Uses saved term fee"></div>
+                </div>
+                <button class="btn btn-green" type="button" onclick="createStudentTermAccount()" style="margin-top:14px">Create Term Account</button>
+                <div style="overflow-x:auto;margin-top:16px"><table><thead><tr><th>Student</th><th>Year</th><th>Term</th><th>Fees Charged</th><th>Paid</th><th>Term Balance</th></tr></thead><tbody id="termAccountRows"><tr><td colspan="6">Loading term accounts…</td></tr></tbody></table></div>
+                <p style="margin-top:12px;color:#8a5b00">Important: payments are still recorded through the existing payment screen at this stage. Do not use it to record term-account payments until we connect the payment allocation step.</p>
+            </div>
+        </section>
 
         <section id="ledger" class="page">
 
@@ -2253,6 +2294,126 @@ function printReports() {
    UPDATE EVERYTHING
    ========================================================= */
 
+/* =========================================================
+   TERM MANAGEMENT (phase 1: fee settings and term accounts)
+   ========================================================= */
+
+function selectedTermYear() {
+    const el = document.getElementById("termSchoolYear");
+    const year = Number(el.value);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Enter a valid school year.");
+    return year;
+}
+
+async function currentStaffRole() {
+    const { data: sessionData } = await supabaseClient.auth.getSession();
+    currentUser = sessionData.session ? sessionData.session.user : null;
+    if (!currentUser) return null;
+    const { data, error } = await supabaseClient.from("school_staff_access")
+        .select("role, active").eq("user_id", currentUser.id).maybeSingle();
+    if (error) throw error;
+    return data && data.active ? data.role : null;
+}
+
+async function loadTermManagement() {
+    const feeRows = document.getElementById("termFeeRows");
+    const accountRows = document.getElementById("termAccountRows");
+    const studentSelect = document.getElementById("termStudentSelect");
+    if (!feeRows || !accountRows) return;
+    feeRows.innerHTML = '<tr><td colspan="4">Loading…</td></tr>';
+    accountRows.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
+    try {
+        const role = await currentStaffRole();
+        if (!role) {
+            feeRows.innerHTML = '<tr><td colspan="4">Please log in with an authorised school staff account.</td></tr>';
+            accountRows.innerHTML = '<tr><td colspan="6">Please log in with an authorised school staff account.</td></tr>';
+            return;
+        }
+        const { data: fees, error: feeError } = await supabaseClient.from("school_term_fees")
+            .select("school_year, term, fee_amount, updated_at").order("school_year", {ascending:false}).order("term");
+        if (feeError) throw feeError;
+        feeRows.innerHTML = fees && fees.length ? fees.map(row => `<tr><td>${row.school_year}</td><td>Term ${row.term}</td><td>$${Number(row.fee_amount).toFixed(2)}</td><td>${row.updated_at ? new Date(row.updated_at).toLocaleDateString() : "—"}</td></tr>`).join("") : '<tr><td colspan="4">No fee settings saved yet.</td></tr>';
+
+        const { data: accounts, error: accountError } = await supabaseClient.from("student_term_accounts")
+            .select("id, student_id, school_year, term, fees_charged, amount_paid, students(student_number, name)")
+            .order("school_year", {ascending:false}).order("term");
+        if (accountError) throw accountError;
+        accountRows.innerHTML = accounts && accounts.length ? accounts.map(row => {
+            const st = row.students || {};
+            const balance = Math.max(0, Number(row.fees_charged || 0) - Number(row.amount_paid || 0));
+            return `<tr><td>${escapeTermText(st.student_number || "")}${st.name ? " — " + escapeTermText(st.name) : ""}</td><td>${row.school_year}</td><td>Term ${row.term}</td><td>$${Number(row.fees_charged || 0).toFixed(2)}</td><td>$${Number(row.amount_paid || 0).toFixed(2)}</td><td>$${balance.toFixed(2)}</td></tr>`;
+        }).join("") : '<tr><td colspan="6">No term accounts created yet.</td></tr>';
+        studentSelect.innerHTML = '<option value="">Choose a student</option>' + students.map(st => `<option value="${String(st.id)}">${escapeTermText(st.number)} — ${escapeTermText(st.name)}</option>`).join("");
+    } catch (error) {
+        console.error("Term management load error:", error);
+        feeRows.innerHTML = `<tr><td colspan="4">Could not load fee settings: ${escapeTermText(error.message || "Unknown error")}</td></tr>`;
+        accountRows.innerHTML = `<tr><td colspan="6">Could not load term accounts: ${escapeTermText(error.message || "Unknown error")}</td></tr>`;
+    }
+}
+
+function escapeTermText(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[ch]));
+}
+
+async function saveTermFeeSetting() {
+    try {
+        const role = await currentStaffRole();
+        if (role !== "admin") { alert("Only an authorised school administrator can change term fees."); return; }
+        const year = selectedTermYear();
+        const term = Number(document.getElementById("termNumber").value);
+        const amount = Number(document.getElementById("termFeeAmount").value);
+        if (![1,2,3].includes(term) || !Number.isFinite(amount) || amount < 0) { alert("Enter a valid term fee amount."); return; }
+        const { error } = await supabaseClient.from("school_term_fees").upsert({school_year:year, term:term, fee_amount:amount, updated_at:new Date().toISOString()}, {onConflict:"school_year,term"});
+        if (error) throw error;
+        alert(`Saved fees for ${year}, Term ${term}.`);
+        await loadTermManagement();
+    } catch (error) { alert("Could not save term fees. " + (error.message || "Check your connection and permissions.")); }
+}
+
+async function copyPreviousTermFee() {
+    try {
+        const role = await currentStaffRole();
+        if (role !== "admin") { alert("Only an authorised school administrator can change term fees."); return; }
+        const year = selectedTermYear();
+        const term = Number(document.getElementById("termNumber").value);
+        let sourceYear = year, sourceTerm = term - 1;
+        if (sourceTerm < 1) { sourceYear = year - 1; sourceTerm = 3; }
+        const { data, error } = await supabaseClient.from("school_term_fees").select("fee_amount").eq("school_year", sourceYear).eq("term", sourceTerm).maybeSingle();
+        if (error) throw error;
+        if (!data) { alert(`No fee setting found for ${sourceYear}, Term ${sourceTerm}. Save a fee first.`); return; }
+        document.getElementById("termFeeAmount").value = Number(data.fee_amount).toFixed(2);
+        alert(`Copied the amount from ${sourceYear}, Term ${sourceTerm}. Click Save Term Fee to apply it to the selected term.`);
+    } catch (error) { alert("Could not reuse previous fee: " + (error.message || "Unknown error")); }
+}
+
+async function createStudentTermAccount() {
+    try {
+        if (!(await ensureStaff())) return;
+        const year = selectedTermYear();
+        const term = Number(document.getElementById("termNumber").value);
+        const studentId = document.getElementById("termStudentSelect").value;
+        if (!studentId) { alert("Choose a student first."); return; }
+        const feeInput = document.getElementById("termOpeningFees").value;
+        let fees = feeInput === "" ? null : Number(feeInput);
+        if (fees !== null && (!Number.isFinite(fees) || fees < 0)) { alert("Enter a valid fee amount."); return; }
+        if (fees === null) {
+            const { data: setting, error: settingError } = await supabaseClient.from("school_term_fees").select("fee_amount").eq("school_year", year).eq("term", term).maybeSingle();
+            if (settingError) throw settingError;
+            if (!setting) { alert("No fee is saved for this year and term. Save a term fee first or enter a fee amount above."); return; }
+            fees = Number(setting.fee_amount);
+        }
+        const { error } = await supabaseClient.from("student_term_accounts").insert({student_id:Number(studentId), school_year:year, term:term, fees_charged:fees, amount_paid:0});
+        if (error) {
+            if (error.code === "23505") alert("This student already has an account for that school year and term.");
+            else throw error;
+            return;
+        }
+        document.getElementById("termOpeningFees").value = "";
+        alert("Term account created. Payments for this new account will be connected in the next step.");
+        await loadTermManagement();
+    } catch (error) { alert("Could not create term account: " + (error.message || "Unknown error")); }
+}
+
 function updateEverything() {
     updateDashboard();
     displayStudents();
@@ -2281,7 +2442,9 @@ window.onclick = function(event) {
 window.addEventListener("DOMContentLoaded", async function() {
     addLoginControls();
     await updateAuthStatus();
+    document.getElementById("termSchoolYear").value = new Date().getFullYear();
     await loadStudents();
+    await loadTermManagement();
 });
 
 supabaseClient.auth.onAuthStateChange(function() {
